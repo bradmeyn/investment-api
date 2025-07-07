@@ -1,22 +1,20 @@
-
 from fastapi import FastAPI
 from .routers.etfs import etf_router
 from .database import engine, Base
 from .config import settings
 
-
-print("Starting application...")
-print(f"Settings: {settings}")
-print(f"Database URL: {settings.database_url}")
-
+# Import all models here so Base knows about them
+from .models.etf import Etf  # This is important!
 
 if not settings.database_url:
     raise ValueError("DATABASE_URL environment variable is not set.")
-# Debug: Print the database URL
-print(f"Using database URL: {settings.database_url}")   
 
 # Create tables when app starts
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI()
+app = FastAPI(title="Investment API", version="1.0.0")
 app.include_router(etf_router)
+
+@app.get("/")
+async def root():
+    return {"message": "Investment API is running"}

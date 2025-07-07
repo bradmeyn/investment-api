@@ -1,14 +1,16 @@
+# models/etf.py
 from sqlalchemy import String, DateTime, Uuid, DECIMAL
-from sqlalchemy.orm import relationship, mapped_column, DeclarativeBase, Mapped
-
-class Base (DeclarativeBase):
-    pass
+from sqlalchemy.orm import mapped_column, Mapped
+from ..database import Base  
+import uuid
+import datetime
 
 class Etf(Base):
     __tablename__ = "etfs"
 
     id: Mapped[Uuid] = mapped_column(
         Uuid(),
+        default=uuid.uuid4,
         primary_key=True,
         unique=True,
         nullable=False
@@ -32,9 +34,12 @@ class Etf(Base):
     )
     created_at: Mapped[DateTime] = mapped_column(
         DateTime,
+        default=datetime.datetime.now,
         nullable=False
     )
     updated_at: Mapped[DateTime] = mapped_column(
         DateTime,
+        default=datetime.datetime.now,
+        onupdate=datetime.datetime.now,
         nullable=False
     )

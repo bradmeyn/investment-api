@@ -1,38 +1,50 @@
-from fastapi import APIRouter
-from fastapi import Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from ..database import get_db 
 from ..models.etf import Etf
-
+from ..schemas.etf import EtfCreate, EtfUpdate, EtfResponse
+from typing import List
 
 etf_router = APIRouter(prefix="/etfs", tags=["etfs"])
 
-
-etfs = [
-    {"id": "1", "name": "ETF 1", "description": "Description of ETF 1"},
-    {"id": "2", "name": "ETF 2", "description": "Description of ETF 2"},
-    {"id": "3", "name": "ETF 3", "description": "Description of ETF 3"},
-]
-
-@etf_router.get("/")
+@etf_router.get("/", response_model=List[EtfResponse])
 async def get_etfs(db: Session = Depends(get_db)):
-    return db.query(Etf).all() 
+    return db.query(Etf).all()
 
-@etf_router.get("/{etf_id}")
-async def get_etf(etf_id: str, db: Session = Depends(get_db)):
-    etf = db.query(Etf).filter(Etf.id == etf_id).first()
+@etf_router.get("/{etf_code}", response_model=EtfResponse)
+async def get_etf(etf_code: str, db: Session = Depends(get_db)):
+    etf = db.query(Etf).filter(Etf.code == etf_code).first()
     if not etf:
-        return {"message": f"ETF {etf_id} not found"}
+        raise HTTPException(status_code=404, detail=f"ETF {etf_code} not found")
     return etf
 
-@etf_router.post("/")
-async def create_etf(etf: dict, db: Session = Depends(get_db)):
-    return {"message": "ETF created", "etf": etf}
+@etf_router.post("/", response_model=EtfResponse)
+async def create_etf(etf: EtfCreate, db: Session = Depends(get_db)):
+    new_etf = Etf(**etf.model_dump())
+    db.add(new_etf)
+    db.commit()
+    db.refresh(new_etf)  # Get the created record with id, timestamps
+    return new_etf
 
-@etf_router.put("/{etf_id}")
-async def update_etf(etf_id: str, etf: dict, db: Session = Depends(get_db)):
-    return {"message": f"ETF {etf_id} updated", "etf": etf}
+@etf_router.put("/{etf_code}", response_model=EtfResponse)
+async def update_etf(etf_code: str, etf: EtfUpdate, db: Session = Depends(get_db)):
+    db_etf = db.query(Etf).filter(Etf.code == etf_code).first()
+    if not db_etf:
+        raise HTTPException(status_code=404, detail=f"ETF {etf_code} not found")
+    
+    for key, value in etf.model_dump().items():
+        setattr(db_etf, key, value)
+    
+    db.commit()
+    db.refresh(db_etf)
+    return db_etf
 
-@etf_router.delete("/{etf_id}")
-async def delete_etf(etf_id: str, db: Session = Depends(get_db)):
-    return {"message": f"ETF {etf_id} deleted"}
+@etf_router.delete("/{etf_code}")
+async def delete_etf(etf_code: str, db: Session = Depends(get_db)):
+    db_etf = db.query(Etf).filter(Etf.code == etf_code).first()
+    if not db_etf:
+        raise HTTPException(status_code=404, detail=f"ETF {etf_code} not found")
+    
+    db.delete(db_etf)
+    db.commit()
+    return {"message": f"ETF {etf_code} deleted"}
